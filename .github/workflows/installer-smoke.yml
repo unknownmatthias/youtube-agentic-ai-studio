@@ -20,8 +20,6 @@ on:
 
 permissions:
   contents: read
-  issues: write          # debug step posts install.log as a PR comment on failure
-  pull-requests: write
 
 jobs:
   install:
@@ -49,9 +47,7 @@ jobs:
           python install.py \
             --dir studio-install \
             --branch "${{ github.head_ref || github.ref_name }}" \
-            --log-file install-debug.log \
-            --yes --no-system-deps 2>&1 | tee install-console.log
-          exit "${PIPESTATUS[0]}"
+            --yes --no-system-deps
 
       - name: Verify with --doctor
         run: |
@@ -63,33 +59,6 @@ jobs:
           python install.py
           --dir studio-install
           --yes --no-system-deps --no-verify
-
-      # TEMPORARY debugging aid — surfaces install.log on a failing runner.
-      - name: Debug — post install.log to the PR
-        if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          {
-            echo "### install.py failed on \`${{ matrix.os }}\` (run ${{ github.run_id }})"
-            echo "interpreter: \`$(python --version 2>&1)\` at \`$(command -v python)\`"
-            echo
-            echo "<details><summary>console output</summary>"
-            echo
-            echo '```'
-            tail -60 install-console.log 2>/dev/null || echo "(no console log)"
-            echo '```'
-            echo "</details>"
-            echo
-            echo "<details><summary>install.log</summary>"
-            echo
-            echo '```'
-            tail -60 install-debug.log 2>/dev/null || echo "(no install-debug.log)"
-            echo '```'
-            echo "</details>"
-          } > debug.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file debug.md 2>&1 || echo "comment failed"
 
   bootstrap:
     name: curl… | bash on ${{ matrix.os }}
