@@ -33,7 +33,7 @@ Open an issue with the **enhancement** label. Describe what you'd like and why i
 
 - Thumbnail generation (AI-designed cover art)
 - A proper test suite
-- Docker / one-click install packaging
+- Docker packaging (the one-click installer now covers macOS/Linux/Windows)
 - Non-English voice and channel support
 - UI improvements to the GUI
 

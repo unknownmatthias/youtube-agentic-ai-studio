@@ -2,14 +2,20 @@
 
 Complete step-by-step instructions to get YouTube AI Agent Studio running from scratch.
 
-> **Time required:** ~10 minutes
+> **In a hurry?** Use the installer instead — it does all of this in ~3 minutes:
+> see **[INSTALL.md](INSTALL.md)**, or run
+> `curl -fsSL https://raw.githubusercontent.com/unknownmatthias/youtube-agentic-ai-studio/main/install.sh | bash`
+> This guide is the manual route (and a reference for what the installer does).
+
+> **Time required (manual):** ~10 minutes
 
 ---
 
 ## Prerequisites
 
 - Python **3.10 or newer** — [python.org/downloads](https://www.python.org/downloads/)
-- `ffmpeg` installed and on your PATH (see [Step 1b](#1b-install-ffmpeg))
+- `ffmpeg` installed and on your PATH — **optional**: MoviePy bundles its own
+  ffmpeg binary, so rendering works without it (see [Step 1b](#1b-install-ffmpeg))
 - A Google account (for Gemini + YouTube)
 - A Pexels account (free image API)
 
@@ -17,11 +23,15 @@ Complete step-by-step instructions to get YouTube AI Agent Studio running from s
 
 ## Step 1 — Clone and install
 
+> **Prefer one command?** `python3 install.py` (inside a clone) or
+> `curl -fsSL https://raw.githubusercontent.com/unknownmatthias/youtube-agentic-ai-studio/main/install.sh | bash`
+> handles steps 1a–3 for you. See [INSTALL.md](INSTALL.md).
+
 ### 1a. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/youtube-ai-agent.git
-cd youtube-ai-agent
+git clone https://github.com/unknownmatthias/youtube-agentic-ai-studio.git
+cd youtube-agentic-ai-studio
 ```
 
 ### 1b. Install ffmpeg
@@ -162,7 +172,7 @@ CHANNEL_NAME = "Your Channel Name"
 python gui.py
 ```
 
-Opens at **http://localhost:7842** — configure everything visually and click Generate.
+Opens at **http://localhost:7070** — configure everything visually and click Generate.
 
 ### CLI mode
 

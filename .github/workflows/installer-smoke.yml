@@ -1,0 +1,99 @@
+name: installer smoke test
+
+# Verifies the installer end-to-end on a clean machine:
+#   • clones the fork from GitHub (the one hop we can't test in a sandbox)
+#   • builds a virtualenv + installs requirements
+#   • runs the built-in verification, then --doctor
+#   • exercises the `curl … | bash` bootstrap with stdin NOT a tty
+on:
+  pull_request:
+    paths:
+      - install.py
+      - install.sh
+      - install.command
+      - requirements.txt
+      - config.py
+      - .github/workflows/installer-smoke.yml
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: install on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # --no-system-deps keeps the run deterministic (no brew/apt/winget calls).
+      # Keys are omitted on purpose: a non-interactive run must skip prompting
+      # and still succeed, only warning about the missing keys.
+      - name: Install from GitHub
+        shell: bash
+        run: |
+          python install.py \
+            --dir studio-install \
+            --branch "${{ github.head_ref || github.ref_name }}" \
+            --yes --no-system-deps
+
+      - name: Verify with --doctor
+        run: |
+          python -c "open('studio-install/.env', 'w').write('GEMINI_API_KEY=ci-dummy-key\nPEXELS_API_KEY=ci-dummy-key\n')"
+          python install.py --dir studio-install --doctor
+
+      - name: Re-run is idempotent
+        run: >
+          python install.py
+          --dir studio-install
+          --yes --no-system-deps --no-verify
+
+  bootstrap:
+    name: curl… | bash on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # No checkout: install.sh downloads install.py from the branch itself,
+      # then runs with stdin closed so the non-interactive path is exercised.
+      # --branch matters: install.sh builds its download URL from it.
+      - name: Bootstrap with stdin not a tty
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.head_ref || github.ref_name }}/install.sh" -o install.sh
+          bash install.sh --branch "${{ github.head_ref || github.ref_name }}" --dir studio-boot --yes --no-system-deps < /dev/null
+
+      - name: The launcher was generated
+        run: cat studio-boot/start-gui.sh
+
+  lint:
+    name: lint installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pyflakes
+      - run: python -m pyflakes install.py
+      - run: bash -n install.sh && bash -n install.command

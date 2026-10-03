@@ -2,16 +2,69 @@ import os
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  YouTube AI Agent Studio — Configuration
-#  Copy this file as-is. Fill in your API keys below (or use env vars).
+#  Copy this file as-is. Fill in your API keys below (or use env vars/.env).
 #  All settings are documented. Change only what you need.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────
+#  .env support  (stdlib only — no python-dotenv dependency)
+#
+#  Historically this project documented "cp .env.example .env" but never
+#  actually read the file, so keys placed there were silently ignored.
+#  This tiny loader fixes that. Place a .env file next to config.py:
+#
+#      GEMINI_API_KEY=AIza...
+#      PEXELS_API_KEY=abc123...
+#
+#  Lines starting with # are comments; quotes around values are stripped.
+# ─────────────────────────────────────────
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+
+
+def _load_env_file(path: str = _ENV_PATH) -> dict:
+    """Parse a simple KEY=VALUE .env file. Missing/unreadable file → {}."""
+    env = {}
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key:
+                    env[key] = value
+    except (OSError, UnicodeDecodeError):
+        pass
+    return env
+
+
+_ENV_FILE = _load_env_file()
+
+
+def _secret(env_var: str, literal: str, placeholder: str = "YOUR_") -> str:
+    """
+    Resolve an API key. First non-empty value wins:
+
+      1. the literal written in this file (config.py) — unless it is still a
+         placeholder, so the GUI's "Save settings" always takes effect
+      2. a real environment variable
+      3. the .env file next to config.py (created by install.py)
+
+    Clear the value in config.py if you want the .env / environment to win.
+    """
+    if literal and not str(literal).startswith(placeholder):
+        return literal
+    return os.environ.get(env_var) or _ENV_FILE.get(env_var) or literal
+
+
+# ─────────────────────────────────────────
 #  API Keys  (all free-tier)
 # ─────────────────────────────────────────
-GEMINI_API_KEY     = os.getenv("GEMINI_API_KEY",     "YOUR_GEMINI_API_KEY")
-PEXELS_API_KEY     = os.getenv("PEXELS_API_KEY",     "YOUR_PEXELS_API_KEY")
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "YOUR_ELEVENLABS_KEY")  # optional
+GEMINI_API_KEY     = _secret("GEMINI_API_KEY",     "YOUR_GEMINI_API_KEY")
+PEXELS_API_KEY     = _secret("PEXELS_API_KEY",     "YOUR_PEXELS_API_KEY")
+ELEVENLABS_API_KEY = _secret("ELEVENLABS_API_KEY", "YOUR_ELEVENLABS_KEY")  # optional
 
 # ─────────────────────────────────────────
 #  Your Channel Identity
