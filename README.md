@@ -12,7 +12,7 @@
 [![Free Tier](https://img.shields.io/badge/Cost-$0%20per%20video-brightgreen?style=flat-square)](SETUP.md)
 [![Stars](https://img.shields.io/github/stars/raunakpatil/youtube-agentic-ai-studio?style=flat-square)](https://github.com/raunakpatil/youtube-agentic-ai-studio/stargazers)
 
-[**Quick Start**](#-quick-start) · [**Features**](#-features) · [**Pipeline**](#️-how-it-works) · [**Setup Guide**](SETUP.md) · [**FAQ**](#-faq)
+[**Quick Start**](#-quick-start) · [**Installer**](INSTALL.md) · [**Features**](#-features) · [**Pipeline**](#️-how-it-works) · [**Setup Guide**](SETUP.md) · [**FAQ**](#-faq)
 
 </div>
 
@@ -61,12 +61,40 @@ This repo powers **[Eldritch Lore](https://www.youtube.com/@EldritchLore)** — 
 
 ## ⚡ Quick Start
 
+### 🚀 Installer (recommended — ~3 minutes)
+
+```bash
+# macOS / Linux — clones this fork, sets up a venv, asks for your API keys
+curl -fsSL https://raw.githubusercontent.com/unknownmatthias/youtube-agentic-ai-studio/main/install.sh | bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/unknownmatthias/youtube-agentic-ai-studio/main/install.py -OutFile install.py
+python install.py
+```
+
+Then launch the dashboard:
+
+```bash
+./start-gui.command     # macOS   (double-clickable)
+./start-gui.sh          # Linux
+start-gui.bat           # Windows
+# → Opens at http://localhost:7070
+```
+
+On macOS you can also just double-click **`install.command`**.
+Full details, flags and troubleshooting → **[INSTALL.md](INSTALL.md)**.
+
+---
+
+### 🛠️ Manual setup
+
 ```bash
 # 1. Clone
-git clone https://github.com/raunakpatil/youtube-agentic-ai-studio.git
+git clone https://github.com/unknownmatthias/youtube-agentic-ai-studio.git
 cd youtube-agentic-ai-studio
 
-# 2. Install dependencies
+# 2. Install dependencies (a virtualenv is strongly recommended)
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # 3. Set your API keys (copy and edit .env.example)
@@ -75,13 +103,14 @@ cp .env.example .env
 
 # 4. Run the GUI
 python gui.py
-# → Opens at http://localhost:7842
+# → Opens at http://localhost:7070
 
 # — OR — run the pipeline directly from the terminal
 python pipeline.py
 ```
 
 > **First run?** Read the full [Setup Guide](SETUP.md) — it takes about 10 minutes.
+> The [installer](INSTALL.md) does all of the above for you.
 
 ---
 
