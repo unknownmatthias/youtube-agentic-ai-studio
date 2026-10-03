@@ -18,6 +18,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write          # debug step posts install.log as a PR comment on failure
+  pull-requests: write
+
 jobs:
   install:
     name: install on ${{ matrix.os }}
@@ -43,6 +48,7 @@ jobs:
           python install.py
           --dir studio-install
           --branch ${{ github.head_ref || github.ref_name }}
+          --log-file install-debug.log
           --yes --no-system-deps
 
       - name: Verify with --doctor
@@ -66,10 +72,10 @@ jobs:
           {
             echo "### install.py failed on \`${{ matrix.os }}\` (run ${{ github.run_id }})"
             echo '```'
-            tail -80 studio-install/install.log 2>/dev/null || echo "(no install.log)"
+            tail -80 install-debug.log 2>/dev/null || echo "(no install-debug.log)"
             echo '```'
           } > debug.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file debug.md || true
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file debug.md 2>&1 || echo "comment failed"
 
   bootstrap:
     name: curl… | bash on ${{ matrix.os }}
@@ -81,12 +87,17 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     steps:
-      # No checkout: this downloads install.sh *and* install.py from the branch,
-      # then runs it with stdin closed so the non-interactive path is exercised.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # No checkout: install.sh downloads install.py from the branch itself,
+      # then runs with stdin closed so the non-interactive path is exercised.
+      # --branch matters: install.sh builds its download URL from it.
       - name: Bootstrap with stdin not a tty
         run: |
           curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.head_ref || github.ref_name }}/install.sh" -o install.sh
-          bash install.sh --dir studio-boot --yes --no-system-deps < /dev/null
+          bash install.sh --branch "${{ github.head_ref || github.ref_name }}" --dir studio-boot --yes --no-system-deps < /dev/null
 
       - name: The launcher was generated
         run: cat studio-boot/start-gui.sh
