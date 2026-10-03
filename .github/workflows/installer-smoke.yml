@@ -44,12 +44,14 @@ jobs:
       # Keys are omitted on purpose: a non-interactive run must skip prompting
       # and still succeed, only warning about the missing keys.
       - name: Install from GitHub
-        run: >
-          python install.py
-          --dir studio-install
-          --branch ${{ github.head_ref || github.ref_name }}
-          --log-file install-debug.log
-          --yes --no-system-deps
+        shell: bash
+        run: |
+          python install.py \
+            --dir studio-install \
+            --branch "${{ github.head_ref || github.ref_name }}" \
+            --log-file install-debug.log \
+            --yes --no-system-deps 2>&1 | tee install-console.log
+          exit "${PIPESTATUS[0]}"
 
       - name: Verify with --doctor
         run: |
@@ -71,9 +73,21 @@ jobs:
         run: |
           {
             echo "### install.py failed on \`${{ matrix.os }}\` (run ${{ github.run_id }})"
+            echo "interpreter: \`$(python --version 2>&1)\` at \`$(command -v python)\`"
+            echo
+            echo "<details><summary>console output</summary>"
+            echo
             echo '```'
-            tail -80 install-debug.log 2>/dev/null || echo "(no install-debug.log)"
+            tail -60 install-console.log 2>/dev/null || echo "(no console log)"
             echo '```'
+            echo "</details>"
+            echo
+            echo "<details><summary>install.log</summary>"
+            echo
+            echo '```'
+            tail -60 install-debug.log 2>/dev/null || echo "(no install-debug.log)"
+            echo '```'
+            echo "</details>"
           } > debug.md
           gh pr comment "${{ github.event.pull_request.number }}" --body-file debug.md 2>&1 || echo "comment failed"
 
