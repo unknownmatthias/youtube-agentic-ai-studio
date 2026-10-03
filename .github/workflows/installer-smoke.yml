@@ -20,8 +20,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   install:
@@ -49,9 +47,7 @@ jobs:
           python install.py \
             --dir studio-install \
             --branch "${{ github.head_ref || github.ref_name }}" \
-            --log-file install-debug.log \
-            --yes --no-system-deps 2>&1 | tee install-console.log
-          exit "${PIPESTATUS[0]}"
+            --yes --no-system-deps
 
       - name: Verify with --doctor
         shell: bash
@@ -65,31 +61,6 @@ jobs:
           python install.py
           --dir studio-install
           --yes --no-system-deps --no-verify
-
-      # TEMPORARY debugging aid — must stay last so it fires on any failure.
-      - name: Debug — post diagnostics to the PR
-        if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          python install.py --dir studio-install --doctor > doctor.log 2>&1 || true
-          {
-            echo "### install.py failed on \`${{ matrix.os }}\` (run ${{ github.run_id }})"
-            echo "<details><summary>doctor output</summary>"
-            echo
-            echo '```'
-            cat doctor.log 2>/dev/null || echo "(none)"
-            echo '```'
-            echo "</details>"
-            echo "<details><summary>install console</summary>"
-            echo
-            echo '```'
-            tail -40 install-console.log 2>/dev/null || echo "(none)"
-            echo '```'
-            echo "</details>"
-          } > debug.md
-          gh pr comment 2 --body-file debug.md 2>&1 || echo "comment failed"
 
   bootstrap:
     name: curl… | bash on ${{ matrix.os }}
