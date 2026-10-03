@@ -56,6 +56,21 @@ jobs:
           --dir studio-install
           --yes --no-system-deps --no-verify
 
+      # TEMPORARY debugging aid — surfaces install.log on a failing runner.
+      - name: Debug — post install.log to the PR
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          {
+            echo "### install.py failed on \`${{ matrix.os }}\` (run ${{ github.run_id }})"
+            echo '```'
+            tail -80 studio-install/install.log 2>/dev/null || echo "(no install.log)"
+            echo '```'
+          } > debug.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file debug.md || true
+
   bootstrap:
     name: curl… | bash on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -67,14 +82,13 @@ jobs:
 
     steps:
       # No checkout: this downloads install.sh *and* install.py from the branch,
-      # and runs with stdin closed so the non-interactive path is exercised.
+      # then runs it with stdin closed so the non-interactive path is exercised.
       - name: Bootstrap with stdin not a tty
-        run: >
-          curl -fsSL
-          https://raw.githubusercontent.com/${{ github.repository }}/${{ github.head_ref || github.ref_name }}/install.sh
-          | bash -s -- --dir studio-boot --yes --no-system-deps < /dev/null
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.head_ref || github.ref_name }}/install.sh" -o install.sh
+          bash install.sh --dir studio-boot --yes --no-system-deps < /dev/null
 
-      - name: Show the generated launcher
+      - name: The launcher was generated
         run: cat studio-boot/start-gui.sh
 
   lint:
