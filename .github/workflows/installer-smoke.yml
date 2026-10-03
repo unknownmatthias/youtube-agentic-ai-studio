@@ -50,11 +50,13 @@ jobs:
             --yes --no-system-deps
 
       - name: Verify with --doctor
+        shell: bash
         run: |
           python -c "open('studio-install/.env', 'w').write('GEMINI_API_KEY=ci-dummy-key\nPEXELS_API_KEY=ci-dummy-key\n')"
           python install.py --dir studio-install --doctor
 
       - name: Re-run is idempotent
+        shell: bash
         run: >
           python install.py
           --dir studio-install

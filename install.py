@@ -1131,18 +1131,29 @@ print("@@JSON@@" + json.dumps(res))
 '''
 
 
-def run_verify(venv: Path, install_dir: Path):
+def run_verify(venv: Path, install_dir: Path, attempts: int = 2):
+    """
+    Run the dependency/health check inside the virtualenv.
+
+    Retried once on failure: Windows runners (and antivirus scanners
+    elsewhere) occasionally produce a transient I/O error while the child
+    writes its report, which used to make `--doctor` fail for no reason.
+    """
     py = str(venv_python_path(venv))
-    rc, out = run([py, "-c", VERIFY_SNIPPET], cwd=str(install_dir),
-                  label="verifying install", timeout=300)
-    if rc != 0:
-        return None, out
-    for line in out.splitlines():
-        if line.startswith("@@JSON@@"):
-            try:
-                return json.loads(line[len("@@JSON@@"):]), out
-            except json.JSONDecodeError:
-                return None, out
+    out = ""
+    for attempt in range(max(1, attempts)):
+        rc, out = run([py, "-c", VERIFY_SNIPPET], cwd=str(install_dir),
+                      label="verifying install", timeout=300)
+        if rc == 0:
+            for line in out.splitlines():
+                if line.startswith("@@JSON@@"):
+                    try:
+                        return json.loads(line[len("@@JSON@@"):]), out
+                    except json.JSONDecodeError:
+                        break
+        if attempt + 1 < attempts:
+            log(f"verification attempt {attempt + 1} failed, retrying")
+            time.sleep(1.5)
     return None, out
 
 
