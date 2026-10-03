@@ -83,6 +83,51 @@ IS_MAC   = sys.platform == "darwin"
 IS_WIN   = os.name == "nt"
 IS_LINUX = sys.platform.startswith("linux")
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  STDOUT ENCODING
+#
+#  Windows consoles often default to cp1252, which cannot encode 🎬 / ✔ / ─ —
+#  printing one raises UnicodeEncodeError and kills the installer before its
+#  first real line of output. Force UTF-8, and fall back to plain ASCII glyphs
+#  when the console itself cannot display them.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:      # not a TextIOWrapper (captured, redirected, …)
+            pass
+
+
+def _console_speaks_utf8() -> bool:
+    if not IS_WIN:
+        return True
+    try:
+        import ctypes
+        return ctypes.windll.kernel32.GetConsoleOutputCP() == 65001
+    except Exception:
+        return True
+
+
+def _can_encode(text: str) -> bool:
+    enc = getattr(sys.stdout, "encoding", None) or "ascii"
+    try:
+        text.encode(enc)
+        return True
+    except (UnicodeEncodeError, LookupError):
+        return False
+
+
+_configure_stdio()
+_UNICODE_OK = _console_speaks_utf8() and _can_encode("🎬─✔✘═•→")
+
+
+def _g(emoji: str, fallback: str = "") -> str:
+    """Return `emoji`, or an ASCII `fallback` the console cannot display it."""
+    return emoji if _UNICODE_OK else fallback
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  OUTPUT HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -129,7 +174,7 @@ def info(msg: str = "") -> None:
 
 
 def ok(msg: str) -> None:
-    print(f"  {green('✔')}  {msg}")
+    print(f"  {_g(green('✔'), green('+'))}  {msg}")
     log(f"OK   {msg}")
 
 
@@ -139,7 +184,7 @@ def warn(msg: str) -> None:
 
 
 def fail(msg: str) -> None:
-    print(f"  {red('✘')}  {red(msg)}")
+    print(f"  {_g(red('✘'), red('x'))}  {red(msg)}")
     log(f"FAIL {msg}")
 
 
@@ -147,7 +192,8 @@ def heading(msg: str) -> None:
     print(f"\n{bold(msg)}")
 
 
-def rule(char: str = "─", width: int = 68) -> None:
+def rule(char: str = None, width: int = 68) -> None:
+    char = char or _g("─", "-")
     print(dim(char * width))
 
 
@@ -158,7 +204,7 @@ def _spin(label: str) -> None:
     global _spinner
     if not sys.stdout.isatty():
         return
-    frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" if _supports_unicode() else "|/-\\"
+    frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" if _UNICODE_OK else "|/-\\"
     if _spinner is None:
         _spinner = itertools.cycle(frames)
     frame = next(_spinner)
@@ -1227,7 +1273,7 @@ def print_report(install_dir: Path, venv: Path, report: dict, sess) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def doctor(sess, install_dir: Path) -> int:
-    print(bold(f"\n🩺  {APP_NAME} — install doctor\n"))
+    print(bold(f"\n{_g('🩺', '[check]')}  {APP_NAME} — install doctor\n"))
     print(f"  Directory : {install_dir}")
     print(f"  Platform  : {platform_summary()}")
     print()
@@ -1310,7 +1356,7 @@ def doctor(sess, install_dir: Path) -> int:
 
 
 def uninstall(sess, install_dir: Path) -> int:
-    print(bold(f"\n🧹  Uninstall {APP_NAME} — {install_dir}\n"))
+    print(bold(f"\n{_g('🧹', '[uninstall]')}  Uninstall {APP_NAME} — {install_dir}\n"))
     venv = install_dir / VENV_DIRNAME
     removed = []
 
@@ -1355,7 +1401,7 @@ def uninstall(sess, install_dir: Path) -> int:
 
 def banner() -> None:
     print()
-    print(bold(f"  🎬  {APP_NAME} — installer"))
+    print(bold(f"  {_g('🎬', '>>')}  {APP_NAME} — installer"))
     print(dim(f"  fork: {REPO_OWNER}/{REPO_NAME}"))
     rule()
 
@@ -1364,15 +1410,17 @@ def next_steps(install_dir: Path, venv: Path, sess, report: dict) -> None:
     rel = install_dir.name
     gui_cmd = "./start-gui.command" if IS_MAC else (
         "start-gui.bat" if IS_WIN else "./start-gui.sh")
+    arrow  = _g("→", "->")
+    bullet = _g("•", "*")
     print()
-    rule("═")
-    print(bold("  🎉  Installation complete"))
-    rule("═")
+    rule(_g("═", "="))
+    print(bold(f"  {_g('🎉', 'OK')}  Installation complete"))
+    rule(_g("═", "="))
     print(f"""
   Launch the studio
       cd {rel if rel != '.' else '.'}
       {gui_cmd}                {dim('# or: source .venv/bin/activate && python gui.py')}
-      {dim(f'→ http://localhost:{GUI_PORT}')}
+      {dim(arrow + f' http://localhost:{GUI_PORT}')}
 
   Or run the pipeline straight from the terminal
       ./{gui_cmd.replace('start-gui', 'start-pipeline').lstrip('./')}
@@ -1384,10 +1432,10 @@ def next_steps(install_dir: Path, venv: Path, sess, report: dict) -> None:
       python3 install.py --upgrade
 
   Before your first video
-      • Open Settings in the GUI and describe your channel (better topics).
-      • To auto-upload: replace client_secret.json with your Google OAuth
+      {bullet} Open Settings in the GUI and describe your channel (better topics).
+      {bullet} To auto-upload: replace client_secret.json with your Google OAuth
         credentials — see SETUP.md → Step 4.
-      • Drop MP3s in “music library/” for background music (optional).
+      {bullet} Drop MP3s in “music library/” for background music (optional).
 """)
 
     missing_keys = [k for k, v in (report or {}).get("keys", {}).items()
