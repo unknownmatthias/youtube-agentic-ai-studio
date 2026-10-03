@@ -20,6 +20,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   install:
@@ -47,7 +49,34 @@ jobs:
           python install.py \
             --dir studio-install \
             --branch "${{ github.head_ref || github.ref_name }}" \
-            --yes --no-system-deps
+            --log-file install-debug.log \
+            --yes --no-system-deps 2>&1 | tee install-console.log
+          exit "${PIPESTATUS[0]}"
+
+      # TEMPORARY debugging aid
+      - name: Debug — post install.log to the PR
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          {
+            echo "### install.py failed on \`${{ matrix.os }}\` (run ${{ github.run_id }})"
+            echo "python: \`$(python --version 2>&1)\`"
+            echo "<details><summary>console</summary>"
+            echo
+            echo '```'
+            tail -70 install-console.log 2>/dev/null || echo "(none)"
+            echo '```'
+            echo "</details>"
+            echo "<details><summary>install.log</summary>"
+            echo
+            echo '```'
+            tail -70 install-debug.log 2>/dev/null || echo "(none)"
+            echo '```'
+            echo "</details>"
+          } > debug.md
+          gh pr comment 1 --body-file debug.md 2>&1 || echo "comment failed"
 
       - name: Verify with --doctor
         run: |
